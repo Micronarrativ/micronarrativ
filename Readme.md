@@ -2,5 +2,5 @@
 
 # Branches
 
-* **Octopress**
+* **Octopress**  
   Plugins and files to extend the functionality of Octopress.
