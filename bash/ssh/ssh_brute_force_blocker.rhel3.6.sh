@@ -66,7 +66,7 @@
 #   /usr/local/scripts/ssh_brute_blocker &
 #
 SCRIPT_NAME=$(basename $0)
-DEBUG=1
+DEBUG=0
 SLEEPSECONDS=10
 PRIVATE_NETWORKS=(
     '10.'
@@ -90,6 +90,7 @@ PRIVATE_NETWORKS=(
     '192.168.'
     )
 LOG_FILE="/var/log/secure"
+LOG_FILE2='/var/log/messages'
 DENY_FILE="/etc/hosts.deny"
 TMP_FILE=$(mktemp)
 INBOUND_IP=''
@@ -104,14 +105,20 @@ chown root:root ${TMP_FILE}
 while :
 do
 
-  tail -1000 ${LOG_FILE} | awk -F"from" '/Failed password for illegal user/'{'print $2'} | awk {'print $1'}| uniq > ${TMP_FILE}
+  [ $DEBUG -eq 1 ] && echo "Temp File: ${TMP_FILE}"
+  [ $DEBUG -eq 1 ] && echo "Checking for failed password in ${LOG_FILE}."
+  tail -1000 ${LOG_FILE} | awk -F"from" '/Failed password for /'{'print $2'} | awk {'print $1'}| uniq > ${TMP_FILE}
+
+  [ $DEBUG -eq 1 ] && echo "Checking for authentication failures in ${LOG_FILE2}."
+  tail -10000 ${LOG_FILE2} | awk -F"rhost=" '/authentication failure; logname/'{'print $2'} | egrep -o '^(([[:digit:]]{1,3}\.){3}[[:digit:]]{1,3})' | uniq >> ${TMP_FILE}
 
   while read -r INBOUND_IP
   do
     for i in ${PRIVATE_NETWORKS}; do
 
-        if [[ `echo ${INBOUND_IP} | grep -E "${i}"` ]]; then            # Bash on RHEL is too old to know '=~'
-            [ $DEBUG -eq 1 ] && echo "Inbound IP (${INBOUND_IP}) triggered, but is a private Network. Ignoring."
+        [ $DEBUG -eq 1 ] && echo "Checking if IP (${INBOUND_IP}) is part of Network (${i})."
+        if [[ `echo ${INBOUND_IP} | grep -E "^${i}"` ]]; then            # Bash on RHEL is too old to know '=~'
+            [ $DEBUG -eq 1 ] && echo "Inbound IP (${INBOUND_IP}) triggered, but is part of private Network ${i}. Ignoring."
             continue 2
         fi
     done
@@ -128,6 +135,8 @@ do
            [ $DEBUG -eq 1 ] && echo "${INBOUND_IP} is not listed. Adding host ${INBOUND_IP} to ${DENY_FILE}."
             echo "ALL: ${INBOUND_IP}" >> ${DENY_FILE}
             /usr/bin/logger -t ssh_brute_blocker -is ${SCRIPT_NAME}: Added SSH attacking host ${INBOUND_IP} to ${DENY_FILE} [${GUESS_COUNT} attempts].
+	    #/usr/local/bin/iptables_block.sh ${INBOUND_IP}
+            #/usr/bin/logger -t ssh_brute_blocker -is ${SCRIPT_NAME}: Added SSH attacking host ${INBOUND_IP} to iptables [${GUESS_COUNT} attempts].
         fi
     else
         [ $DEBUG -eq 1 ] && echo "Ignoring host ${INBOUND_IP} less than ${PERMIT_GUESS} wrong guesses."
@@ -136,10 +145,13 @@ do
 
   done < ${TMP_FILE}
 
+  [ $DEBUG -eq 1 ] && echo "Halting Script for ${SLEEPSECONDS} seconds."
   sleep ${SLEEPSECONDS}
 
+  [ $DEBUG -eq 1 ] && echo "Removing temp file: ${TMP_FILE}."
   rm -f ${TMP_FILE}
 
 done
 
 exit 0
+
