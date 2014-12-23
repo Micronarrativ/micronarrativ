@@ -1,5 +1,34 @@
 #!/usr/bin/env ruby
-# 20141126/JT
+# == File: pdfmetadata.rb
+#
+# Show and edit Metadata of PDF files and rename the files accordingly.
+#
+# === Requirements
+#
+# Ruby gems:
+# - thor
+# - highline/import
+# - fileutils
+# -i18n
+#
+#
+# OS applications:
+# - exiftools
+#
+# === Usage
+#
+#   $ ./pdfmetadata <action> <parameter> file
+#
+#   $ ./pdfmetadata help <action>
+#
+# An overview about the actions can be seen when running the script without
+# any parameters
+#
+# === Changelog
+#
+# Version 1.0
+# - Added documentation in long description of the commands
+# - Added method "explain" for further information
 #
 # Version 0.9
 # - Added 'rename' option to edit metatags
@@ -15,7 +44,6 @@
 # * CreateDate
 # * Title
 # * Author
-# * Creator (optional)
 # * Subject
 # * Keywords (optional)
 #
@@ -26,6 +54,11 @@
 #   -sDEVICE=pdfwrite \
 #   -dPDFSETTINGS=/prepress \
 #   corrupted.pdf
+#
+# == Author
+#
+# Daniel Roos <daniel-git@micronarrativ.org>
+# Source: https://github.com/Micronarrativ/micronarrativ/tree/scripts
 #
 require "thor"
 require "highline/import"
@@ -140,24 +173,29 @@ class DOC < Thor
   # Show the current metadata tags
   #
   # TODO: format output as JSON and YAML
+  # TODO: Enable additional options
   #
   desc 'show', 'Show metadata of a file'
   method_option :all, :type => :boolean, :aliases => '-a', :desc => 'Show all metatags', :default => false, :required => false
-  method_option :tag, :type => :string, :aliases => '-t', :desc => 'Show specific tag', :required => false
+  method_option :tag, :type => :string, :aliases => '-t', :desc => 'Show specific tag(s), comma separated', :required => false
   long_desc <<-LONGDESC
-  `CLI show -t TAG <filename> ` will show the tag(s) 'TAG'
+  == General
 
-  >CLI show -t author example.pdf
-  John Doe
+  Show metatags of a PDF document.
 
-  >CLI show -t author,title example.pdf
-  John Doe
-  Example Document
+  == Example
 
-  # Options
-  -a|--all      Show all Metatags that are managed.
-  -t|--tag      List tags do show, separated by comma. Each tag will be output
-                in a separate line.
+  # Show default metatags for a pdf document
+  \x5>CLI show <filename>
+
+  # Show default metatags for example.pdf
+  \x5>CLI show example.pdf
+
+  # Show value for metatag 'Author' for the file example.pdf
+  \x5>CLI show -t author example.pdf
+
+  # Show value for metatags 'Author','Title' for the file example.pdf
+  \x5>CLI show -t author,title example.pdf
 
   LONGDESC
   def show(filename)
@@ -174,7 +212,6 @@ class DOC < Thor
 
     # Ouput only specific tags
     elsif not options[:tag].nil?
-
       tags = options[:tag].split(',')
       tags.each do |tag|
         puts metadata[tag]
@@ -188,16 +225,88 @@ class DOC < Thor
   #
   # TODO: keywords are added differently according to the documentation
   # http://www.sno.phy.queensu.ca/~phil/exiftool/faq.html
-  desc 'edit', 'Edit Meta Tag'
+  desc 'edit', 'Edit Meta Tag(s)'
   long_desc <<-LONGDESC
-  `CLI edit -t TAG <filename> ` will edit the tag 'TAG' and set the new value.
+  == General
 
-  >CLI edit -t author example.pdf
-  ...some fancy IO
-  ...done
+  Command will edit the metadata of a PDF document. Multiple values can be
+  specified or 'all'.
+
+  The command will invoke an interactive user input and request the values
+  for the metatag.
+
+  Additionally the file can be renamed at the end according to the new meta
+    tags. See `$ #{__FILE__} help rename` for details.
+
+  == Parameter
+
+  --tag, -t
+  \x5Names or list of names of Metatag fields to set, separated by commata.
+
+  --rename, -r
+  \x5Rename file after updating the meta tag information according to the fields.
+  This parameter is identical to running `$ #{__FILE__} rename <filename>`
+
+
+  General example:
+
+  # Edit tag 'TAG' and set a new value interactive.
+  \x5>CLI edit -t TAG(S) <filename>
+
+  # Edit tag 'Author' and set new value interactive.
+  \x5>CLI edit -t author example.pdf
+
+
+  == Multiple Tags
+
+  For setting multiple tags list the tags comma separated.
+
+  For setting all tags (Author, Title, Subject, CreateDate, Keywords) use the
+  keyword 'all' as tagname.
+
+  # Set tags 'Author', 'Title', 'Subject' in example.pdf interactivly.
+  \x5>CLI edit -t author,title,subject example.pdf`
+
+  # Set tags 'Author', 'Title', 'Subject', 'CreateDate', 'Keywords' in
+  example.pdf interactive.
+  \x5>CLI edit -t all example.pdf
+
+  == Tag: CreateDate
+
+  In order to enter a value for the 'CreateDate' field, some internal matching is going
+  on in order to make it easier and faster to enter dates and times.
+
+  The following formats are identified:
+
+  yyyymmdd
+  \x5yyyymmd
+  \x5yyyymmddHHMMSS
+  \x5yyyy-mm-dd HH:MM:SS
+  \x5yyyy:mm:dd HH:MM:SS
+  \x5yyyy.mm.dd HH:MM:SS
+  \x5yyyy-mm-d
+  \x5yyyy-mm-dd
+  \x5yyyy.mm.d
+  \x5yyyy.mm.dd
+  \x5yyyy:mm:d
+  \x5yyyy:mm:dd
+
+  - If HH:MM:SS or HHMMSS is not provided, those values are automatically set to zero.
+  \x5- The output format of every timestamp is 'yyyy:mm:dd HH:MM:SS'
+  \x5- When providing and invalid date, the incorrect date is rejected and the user asked to provide the correct date.
+
+  == Rename file
+
+  In addition to setting the tags the current file can be renamed according to
+  the new metadata.
+
+  # Set tag 'Author' and rename file example.pdf
+  \x5>CLI edit -t author -r example.pdf
+
+  See `$ pdfmetadata help rename` for details about renaming.
 
   LONGDESC
-  method_option :tag, :type => :string, :aliases => '-t', :desc => 'Name of the Tag to Edit', :default => false, :required => true
+  method_option :tag, :type => :string, :aliases => '-t', :desc => 'Name of the Tag(s) to Edit', :default => false, :required => true
   method_option :rename, :type => :boolean, :aliases => '-r', :desc => 'Rename file after changing meta-tags', :default => false, :required => false
   def edit(filename)
     metadata = readMetadata(filename)
@@ -220,8 +329,6 @@ class DOC < Thor
       `exiftool -#{currentTag}='#{answer}' -overwrite_original '#{filename}'`
     end
 
-    puts `#{__FILE__} rename '#{filename}'`
-
     #
     # If required, run the renaming task afterwards
     # This is not pretty, but seems to be the only way to do this in THOR
@@ -238,6 +345,24 @@ class DOC < Thor
   #
   # void check(string)
   desc 'check', 'Check Metadata for completeness'
+  long_desc <<-LONGDESC
+  == General
+
+  Show value of the following metatags of a PDF document:
+
+  - Author
+  \x5- Creator
+  \x5- CreateDate
+  \x5- Subject
+  \x5- Title
+  \x5- Keywords
+
+  == Example
+
+  # Show the values of the metatags for example.pdf
+  \x5>CLI show example.pdf
+
+  LONGDESC
   def check(filename)
     returnvalue = 0
     readMetadata(filename).each do|key,value|
@@ -254,8 +379,59 @@ class DOC < Thor
   # Show information about how they are used.
   #
   desc 'explain','Show more information about usuable Meta-Tags'
-  def explain(tag)
-    # TODO: THis thingy
+  long_desc <<-LONGDESC
+  == General
+
+  Explain some terms used with the script.
+
+  == Example
+
+  # Show the available subjects
+  \x5>CLI explain
+
+  # Show information about the subject 'author'
+  \x5>CLI explain author
+
+  LONGDESC
+  def explain(term='')
+
+    case term
+    when ''
+      puts 'Available subjects:'
+      puts '- author'
+      puts '- createdate'
+      puts '- keywords'
+      puts '- subject'
+      puts '- title'
+      puts ' '
+      puts "Run `$ #{__FILE__} explain <subject>` to get more details."
+    when 'author'
+      puts '[Author]'
+      puts '  The sender or creator of the document.'
+    when 'createdate'
+      puts '[CreateDate]'
+      puts '  Date of the document. This is not the date when the file was created, but'
+      puts '  the date found in the document or printed on the document.'
+    when 'title'
+      puts '[Title]'
+      puts '  General type of the document, e.g. Manual, Invoice.'
+    when 'subject'
+      puts '[Subject]'
+      puts '  What is the document about.'
+      puts '  For example:'
+      puts '  Manual: What is the manual about?'
+      puts '  Invoice: Invoice number?'
+      puts '  Contract: Contract number of Subject of the contract?'
+      puts '  Order: Ordernumber of the document?'
+    when 'keywords'
+      puts '[Keywords]'
+      puts '  Anything else that might be of interesst.'
+      puts '  In Orders the elements that have been orders. Contracts might contain the'
+      puts '  Names and adress of the involved parties.'
+      puts '  '
+      puts '  When writing Invoices with their numbers, these will be automatically be '
+      puts '  picked up and can be integrated in the filename, e.g. "Invoicenumber 12334'
+    end
 
   end
 
@@ -265,40 +441,107 @@ class DOC < Thor
   # Scheme: YYYYMMDD-author-subject-keywords.extension
   desc 'rename', 'Rename the file according to Metadata'
   long_desc <<-LONGDESC
-  `CLI rename <filename>` will rename the file to the metatags accordingly
+  == General
+
+  Rename a file according to the meta tags in the document.
+
+  == Parameter
+
+  --dry-run, -n
+  \x5Simulate the renaming process and show the result without changing the file.
+
+  --all-keywords, -a
+  \x5Use all keywords from the meta information in the file name and ignore the limit.
+
+  --keywwords, -k
+  \x5Set the number of keywords used in the filename to a new value.
+  \x5Default: 3
+
+  --outputdir, -o
+  \x5Not implemented yet. Default output dir for the renamed file is the source directory.
+
+  == Example
+
+  # Rename the file according to the metatags
+  \x5>CLI rename <filename>
+
+  # Rename example.pdf according to the metatags
+  \x5>CLI rename example.pdf
+
+  # Simulate renaming example.pdf according to the metatags (dry-run)
+  \x5>CLI rename -n example.pdf
+
+  == Rules
+
+  There are some rules regarding how documents are being renamed
+
+  Rule 1: All documents have the following filenaming structure:
+
+  yyyymmdd-<author>-<type>-<additionalInformation>.<extension>
+
+  # yyyymmdd: Year, month and day identival to the meta information in the
+  document.
+  \x5# <author>: Author of the document, identical to the meta information
+  in the document. Special characters and whitespaces are replaced.
+  \x5# <type>: Document type, is being generated from the title field in the
+  metadata of the document. Document type is a three character abbreviation
+  following the following logic:\x5
+  \x5 til => Tilbudt|Angebot
+  \x5 odb => Orderbekreftelse
+  \x5 fak => Faktura
+  \x5 ord => Order
+  \x5 avt => Kontrakt|Avtale|Vertrag|contract
+  \x5 kvi => Kvittering
+  \x5 man => Manual
+  \x5 bil => Billett|Ticket
+  \x5 inf => Informasjon|Information
+  \x5 dok => unknown
+
+  If the dokument type can not be determined automatically, it defaults to 'dok'.
+
+  # <additionalInformation>: Information generated from the metadata fields
+  'title', 'subject' and 'keywords'. 
+
+  If Title or Keywords contains one of the following keywords, the will be
+  replaced with the corresponding abbreviation followed by the specified value
+  separated by a whitespace:
+
+  \x5 fak => Faktura|Fakturanummer|Rechnung|Rechnungsnummer
+  \x5 kdn => Kunde|Kundenummer|Kunde|Kundennummer
+  \x5 ord => Ordre|Ordrenummer|Bestellung|Bestellungsnummer
+  \x5 kvi => Kvittering|Kvitteringsnummer|Quittung|Quittungsnummer
+
+  Rule 2: The number of keywords used in the filename is defined by the parameter
+  '-k'. See the section of that parameter for more details and the default value.
+
+  Rule 3: Keywords matching 'kvi','fak','ord','kdn' are prioritised.
+
+  Rule 4:  Special characters and whitespaces are replaced.
+
+  Rule 5: The new filename has only lowercase characters.
+
+  == Example (detailed)
 
   # Example PDF with following MetaTags:
-  #
-  # Filename: example.pdf
-  # Author: John
-  # Subject: new Product
-  # Title: Presentation
-  # CreateDate: 1970:01:01 01:00:00
-  # Keywords: John Doe, Jane Doe, Mister Doe
+  
+  \x5 Filename   : example.pdf
+  \x5 Author     : John
+  \x5 Subject    : new Product
+  \x5 Title      : Presentation
+  \x5 CreateDate : 1970:01:01 01:00:00
+  \x5 Keywords   : John Doe, Jane Doe, Mister Doe
 
   # Renaming the file
-  >CLI rename example.pdf
-  example.pdf => 19700101-john-dok-new_product-john_doe-jane_doe.pdf
+  \x5>CLI rename example.pdf
+  \x5example.pdf => 19700101-john-dok-new_product-john_doe-jane_doe.pdf
 
   # Simulation to rename the file (no actual change)
-  > CLI rename -n example.pdf
-  example.pdf => 19700101-john-dok-new_product-john_doe-jane_doe.pdf
+  \x5> CLI rename -n example.pdf
+  \x5example.pdf => 19700101-john-dok-new_product-john_doe-jane_doe.pdf
 
   # Renaming the file with all keywords
-  > CLI rename -n -a example.pdf
-  example.pdf => 19700101-john-dok-new_product-john_doe-jane_doe-mister_doe.pdf
-
-  Certain words are being replaced when used as Keywords (case-insensitive):
-
-  'Faktura','Fakturanummer','Rechnung','Rechnungsnummer'          => 'fak'
-  'Kunde','Kundenummer','Kundennummer'                            => 'kdn'
-  'Ordre','Ordenummer','Bestellung','Bestellungsnummer'           => 'ord'
-  'Kvittering','Kvitteringsnummer', 'Quittung','Quittungsnummer'  => 'kvi'
-
-  
-  # Options
-  #
-  -o,--outputdir    Specify any other directory as output directory. Default: pwd
+  \x5> CLI rename -n -a example.pdf
+  \x5example.pdf => 19700101-john-dok-new_product-john_doe-jane_doe-mister_doe.pdf
 
   LONGDESC
   method_option :dryrun, :type => :boolean, :aliases => '-n', :desc => 'Run without making changes', :default => false, :required => false
@@ -321,6 +564,7 @@ class DOC < Thor
     author  = metadata['author'].gsub(/\./,'_').gsub(/\-/,'').gsub(/\s/,'_')
 
     keywords_preface = ''
+    # This statement can probably be optimised
     case metadata['title']
     when /(Tilbudt|Angebot)/i
       doktype = 'til'
