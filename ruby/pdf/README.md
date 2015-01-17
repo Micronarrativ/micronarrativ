@@ -41,7 +41,7 @@ The usage is quite simple
 $ ./pdfmetadata.rb [show|edit|rename] [options] <filename>
 ```
 
-The interface has been setup usign Thor.  
+The interface has been setup using Thor.  
 So in order to get more information just run the required _help_ command:
 
 ```

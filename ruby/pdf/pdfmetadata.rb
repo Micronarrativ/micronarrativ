@@ -203,12 +203,12 @@ class DOC < Thor
 
     # Output all metatags
     if options[:all] or options[:tag].nil?
-      puts "Author      : " + metadata['author']
-      puts "Creator     : " + metadata['creator']
-      puts "CreateDate  : " + metadata['createdate']
-      puts "Subject     : " + metadata['subject']
-      puts "Title       : " + metadata['title']
-      puts "Keywords    : " + metadata['keywords']
+      puts "Author      : " + metadata['author'].to_s
+      puts "Creator     : " + metadata['creator'].to_s
+      puts "CreateDate  : " + metadata['createdate'].to_s
+      puts "Subject     : " + metadata['subject'].to_s
+      puts "Title       : " + metadata['title'].to_s
+      puts "Keywords    : " + metadata['keywords'].to_s
 
     # Ouput only specific tags
     elsif not options[:tag].nil?
@@ -516,7 +516,9 @@ class DOC < Thor
 
   Rule 3: Keywords matching 'kvi','fak','ord','kdn' are prioritised.
 
-  Rule 4:  Special characters and whitespaces are replaced.
+  Rule 4: Special characters and whitespaces are replaced: 
+          \s => _
+          /  => _
 
   Rule 5: The new filename has only lowercase characters.
 
@@ -613,6 +615,7 @@ class DOC < Thor
         value = value.gsub(/(Ordre|Bestellung)(s?nummer)? /i,'ord')
         value = value.gsub(/(Kvittering|Quittung)(snummer)? /i,'kvi')
         value = value.gsub(/\s/,'_')
+        value = value.gsub(/\//,'_')
         keywordsarray[index] = value
         if value.match(/^(fak|kdn|ord|kvi)/)
           keywordssorted.insert(0, value)
@@ -672,7 +675,7 @@ class DOC < Thor
 
     if not options[:dryrun] and filename != newFilename.downcase
       #puts "  #{filename} => #{newFilename.downcase}"
-      `mv -v '#{filename}' #{newFilename.downcase}`
+      `mv -v '#{filename}' '#{newFilename.downcase}'`
     else
       puts filename + "\n   => " + newFilename.downcase
     end
