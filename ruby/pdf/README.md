@@ -21,6 +21,8 @@ $ gem install thor
 $ gem install highline
 $ gem install fileutils
 $ gem install i18n
+$ gem install pathname
+$ gem install logger
 ```
 
 ## Applications
@@ -38,13 +40,17 @@ $ sudo yum install Perl-Image-Exiftool
 The usage is quite simple
 
 ```
-$ ./pdfmetadata.rb [show|edit|rename] [options] <filename>
+$ ./pdfmetadata.rb [show|edit|rename|sort] [options] <filename>
 ```
 
 The interface has been setup using Thor.  
 So in order to get more information just run the required _help_ command:
 
 ```
+# Show general possibilities:
+$ pdfmetadata.rb 
+
+# Show more information about <action>
 $ pdfmetadata.rb help <action>
 ```
 

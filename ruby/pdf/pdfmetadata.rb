@@ -5,14 +5,16 @@
 #
 # === Requirements
 #
-# Ruby gems:
+# ==== Ruby gems:
 # - thor
 # - highline/import
 # - fileutils
-# -i18n
+# - i18n
+# - pathname
+# - logger
 #
+# ==== OS applications:
 #
-# OS applications:
 # - exiftools
 #
 # === Usage
@@ -25,6 +27,16 @@
 # any parameters
 #
 # === Changelog
+#
+# Version 1.1
+# - Added Function to sort pdf documents into a directory structure based on
+#   the author of the document.
+# - Added dependency 'pathname'
+# - Added dependency 'logger'
+# - Added dependency 'i18n'
+# - Added method 'sort'
+# - Changing a tag will now output the old value in the edit dialog.
+# - Updated documentation and descriptions of methods
 #
 # Version 1.0
 # - Added documentation in long description of the commands
@@ -49,6 +61,7 @@
 #
 # TODO: Include password protected PDF documents as well
 # TODO: Fix broken PDF files automatically
+# TODO: Enable logging in more functions than only "sort"
 # gs \
 #   -o repaired.pdf \
 #   -sDEVICE=pdfwrite \
@@ -64,6 +77,8 @@ require "thor"
 require "highline/import"
 require "fileutils"
 require "i18n"
+require 'pathname'
+require 'logger'
 
 #
 # Function to read the metadata from a given file
@@ -169,6 +184,7 @@ end
 
 class DOC < Thor
 
+
   #
   # Show the current metadata tags
   #
@@ -182,6 +198,24 @@ class DOC < Thor
   == General
 
   Show metatags of a PDF document.
+
+  The following tags are being shown:
+  \x5 * Author
+  \x5 * Creator
+  \x5 * CreateDate
+  \x5 * Title
+  \x5 * Subject
+  \x5 * Keywords
+
+  == Parameters
+
+  --all, -a
+  \x5 Show all relevant metatags for a document.
+
+  Relevant tags are Author,Creator, CreateDate, Title, Subject, Keywords.
+
+  --tag, -t
+  \x5 Specify the metatag to show. The selected metatag must be one of the relevant tags. Other tags are ignored and nothing is returned.
 
   == Example
 
@@ -238,31 +272,33 @@ class DOC < Thor
   Additionally the file can be renamed at the end according to the new meta
     tags. See `$ #{__FILE__} help rename` for details.
 
-  == Parameter
+  == Parameters
 
   --tag, -t
-  \x5Names or list of names of Metatag fields to set, separated by commata.
+  \x5 Names or list of names of Metatag fields to set, separated by commata.
 
   --rename, -r
-  \x5Rename file after updating the meta tag information according to the fields.
-  This parameter is identical to running `$ #{__FILE__} rename <filename>`
+  \x5 Rename file after updating the meta tag information according to the fields.
 
+  This parameter is identical to running `> CLI rename <filename>`
 
   General example:
 
   # Edit tag 'TAG' and set a new value interactive.
-  \x5>CLI edit -t TAG(S) <filename>
+  \x5>CLI edit -t TAG <filename>
 
   # Edit tag 'Author' and set new value interactive.
   \x5>CLI edit -t author example.pdf
+
+  # Edit mulitple Tags and set a new value.
+  \x5>CLI edit -t tag1,tag2,tag3 <filename>
 
 
   == Multiple Tags
 
   For setting multiple tags list the tags comma separated.
 
-  For setting all tags (Author, Title, Subject, CreateDate, Keywords) use the
-  keyword 'all' as tagname.
+  For setting all tags (Author, Title, Subject, CreateDate, Keywords) use the keyword 'all' as tagname.
 
   # Set tags 'Author', 'Title', 'Subject' in example.pdf interactivly.
   \x5>CLI edit -t author,title,subject example.pdf`
@@ -273,27 +309,26 @@ class DOC < Thor
 
   == Tag: CreateDate
 
-  In order to enter a value for the 'CreateDate' field, some internal matching is going
-  on in order to make it easier and faster to enter dates and times.
+  In order to enter a value for the 'CreateDate' field, some internal matching is going on in order to make it easier and faster to enter dates and times.
 
-  The following formats are identified:
+  The following formats are identified/matched:
 
-  yyyymmdd
-  \x5yyyymmd
-  \x5yyyymmddHHMMSS
-  \x5yyyy-mm-dd HH:MM:SS
-  \x5yyyy:mm:dd HH:MM:SS
-  \x5yyyy.mm.dd HH:MM:SS
-  \x5yyyy-mm-d
-  \x5yyyy-mm-dd
-  \x5yyyy.mm.d
-  \x5yyyy.mm.dd
-  \x5yyyy:mm:d
-  \x5yyyy:mm:dd
+  \x5 yyyymmdd
+  \x5 yyyymmd
+  \x5 yyyymmddHHMMSS
+  \x5 yyyy-mm-dd HH:MM:SS
+  \x5 yyyy:mm:dd HH:MM:SS
+  \x5 yyyy.mm.dd HH:MM:SS
+  \x5 yyyy-mm-d
+  \x5 yyyy-mm-dd
+  \x5 yyyy.mm.d
+  \x5 yyyy.mm.dd
+  \x5 yyyy:mm:d
+  \x5 yyyy:mm:dd
 
-  - If HH:MM:SS or HHMMSS is not provided, those values are automatically set to zero.
-  \x5- The output format of every timestamp is 'yyyy:mm:dd HH:MM:SS'
-  \x5- When providing and invalid date, the incorrect date is rejected and the user asked to provide the correct date.
+  \x5 - If HH:MM:SS or HHMMSS is not provided, those values are automatically set to zero.
+  \x5 - The output format of every timestamp is <yyyy:mm:dd HH:MM:SS>
+  \x5 - When providing and invalid date, the incorrect date is rejected and the user asked to provide the correct date.
 
   == Rename file
 
@@ -301,9 +336,9 @@ class DOC < Thor
   the new metadata.
 
   # Set tag 'Author' and rename file example.pdf
-  \x5>CLI edit -t author -r example.pdf
+  \x5> CLI edit -t author -r example.pdf
 
-  See `$ pdfmetadata help rename` for details about renaming.
+  See `> CLI help rename` for details about renaming.
 
   LONGDESC
   method_option :tag, :type => :string, :aliases => '-t', :desc => 'Name of the Tag(s) to Edit', :default => false, :required => true
@@ -318,6 +353,7 @@ class DOC < Thor
     end
     tags.each do |currentTag|
       # Change the tag to something we can use here
+      puts "Current value: '#{metadata[currentTag]}'"
       answer   = readUserInput("Enter new value for #{currentTag} :")
       if currentTag == 'createdate'
         while not answer = identifyDate(answer)
@@ -436,6 +472,113 @@ class DOC < Thor
   end
 
   #
+  # Sort the files into directories based on the author
+  #
+  desc 'sort','Sort files into directories sorted by Author'
+  long_desc <<-LONGDESC
+  == General
+
+  Will sort pdf documents into subdirectories according to the value of their
+  tag 'author'.
+
+  When using this action a logfile with all actions will be generated in the
+  current working directory with the same name as the script and the ending
+  '.log'. This can be disabled with the parameter 'log' if required.
+
+  If a document does not have an entry in the meta tag 'author', the file will
+  not be processed. This can be seen in the output of the logfile as well.
+
+  === Parameters
+
+  [*destination|d*]
+  \x5 Speficy the root output directory to where the folderstructure is being created.
+
+    This parameter is required.
+
+  [*copy|c*]
+  \x5 Copy the files instead of moving them.
+
+  [*log|l*]
+  \x5 Disable/Enable the logging.
+  \x5 Default: enabled.
+
+  === Replacement rules
+
+  The subdirectories for the documents are generated from the values in the
+  tag 'author' of each document.
+
+  In order to ensure a clean directory structure, there are certain rules
+  for altering the values.
+  \x5 1. Whitespaces are replaced by underscores.
+  \x5 2. Dots are replaced by underscores.
+  \x5 3. All letters are converted to their lowercase version.
+  \x5 4. Special characters are serialized
+
+  === Example
+
+    This command does the following:
+    \x5 1. Take all pdf documents in the subdirectory ./documents.
+   \x5 2. Create the output folder structure in `/tmp/test/`.
+   \x5 3. Copy the files instead of moving them.
+   \x5 4. Disable the logging.
+   \x5> CLI sort -d /tmp/test -c -l false ./documents
+
+  LONGDESC
+  method_option :destination, :aliases => '-d', :required => true, :type => :string, :desc => 'Defines the output directory'
+  method_option :copy, :aliases => '-c', :required => false, :type => :boolean, :desc => 'Copy files instead of moving them'
+  method_option :log, :aliases => '-l', :require => false, :type => :boolean, :desc => 'Enable/Disable creation of log files', :default => true
+  def sort(inputDir = '.')
+
+    destination = options[:destination]
+    logenable   = options[:log]
+    logenable ? $logger = Logger.new(Dir.pwd + "/#{__FILE__}.log") : ''
+
+    # Input validation
+    !File.exist?(inputDir) ? abort('Input directory does not exist. Abort.'): ''
+    File.directory?(inputDir) ? '' : abort('Input is a single file')
+    File.file?(destination) ? abort("Output '#{destination}' is an existing file. Cannot create directory with the same name. Abort") : ''
+    unless File.directory?(destination)
+      FileUtils.mkdir_p(destination)
+      $logger.info("Destination '#{destination}' has been created.")
+    end
+
+    # Iterate through all files
+    Dir[inputDir.chomp('/') +  '/*.pdf'].sort.each do |file|
+
+      metadata = readMetadata(file)
+      if metadata['author'] and not metadata['author'].empty?
+        author = metadata['author'].gsub(' ','_').gsub('.','_')
+        I18n.enforce_available_locales = false # Serialize special characters
+        author = I18n.transliterate(author).downcase
+        folderdestination = destination.chomp('/') + '/' + author
+        unless File.directory?(folderdestination)
+          FileUtils.mkdir_p(folderdestination)
+          logenable ? $logger.info("Folder '#{folderdestination}' has been created."): ''
+        end
+        filedestination = destination.chomp('/') + '/' + author + '/' + Pathname.new(file).basename.to_s
+
+        # Final check before touching the filesystem
+        if not File.exist?(filedestination)
+          $logger.info("File '#{file}' => '#{filedestination}'")
+
+          # Move/Copy the file
+          if options[:copy]
+            FileUtils.cp(file, filedestination)
+          else
+            FileUtils.mv(file,filedestination)
+          end
+
+        else
+          logenable ? $logger.warn("File '#{filedestination}' already exists. Ignoring.") : ''
+        end
+      else
+        logenable ? $logger.warn("Missing tag 'Author' for file '#{file}'. Skipping.") : (puts "Missing tag 'Author' for file '#{file}'. Skipping")
+      end
+    end
+
+  end
+
+  #
   # Rename the file according to the Metadata
   #
   # Scheme: YYYYMMDD-author-subject-keywords.extension
@@ -443,33 +586,33 @@ class DOC < Thor
   long_desc <<-LONGDESC
   == General
 
-  Rename a file according to the meta tags in the document.
+  Rename a file with the meta tags in the document.
 
   == Parameter
 
   --dry-run, -n
-  \x5Simulate the renaming process and show the result without changing the file.
+  \x5 Simulate the renaming process and show the result without changing the file.
 
   --all-keywords, -a
-  \x5Use all keywords from the meta information in the file name and ignore the limit.
+  \x5 Use all keywords from the meta information in the file name and ignore the limit.
 
   --keywwords, -k
-  \x5Set the number of keywords used in the filename to a new value.
-  \x5Default: 3
+  \x5 Set the number of keywords used in the filename to a new value.
+  \x5 Default: 3
 
   --outputdir, -o
-  \x5Not implemented yet. Default output dir for the renamed file is the source directory.
+  \x5 Not implemented yet. Default output dir for the renamed file is the source directory.
 
   == Example
 
   # Rename the file according to the metatags
-  \x5>CLI rename <filename>
+  \x5> CLI rename <filename>
 
   # Rename example.pdf according to the metatags
-  \x5>CLI rename example.pdf
+  \x5> CLI rename example.pdf
 
   # Simulate renaming example.pdf according to the metatags (dry-run)
-  \x5>CLI rename -n example.pdf
+  \x5> CLI rename -n example.pdf
 
   == Rules
 
@@ -477,15 +620,14 @@ class DOC < Thor
 
   Rule 1: All documents have the following filenaming structure:
 
-  yyyymmdd-<author>-<type>-<additionalInformation>.<extension>
+  <yyyymmdd>-<author>-<type>-<additionalInformation>.<extension>
 
-  # yyyymmdd: Year, month and day identival to the meta information in the
+  \x5 # <yyyymmdd>: Year, month and day identival to the meta information in the
   document.
-  \x5# <author>: Author of the document, identical to the meta information
+  \x5 # <author>: Author of the document, identical to the meta information
   in the document. Special characters and whitespaces are replaced.
-  \x5# <type>: Document type, is being generated from the title field in the
-  metadata of the document. Document type is a three character abbreviation
-  following the following logic:\x5
+  \x5 # <type>: Document type, is being generated from the title field in the metadata of the document. Document type is a three character abbreviation following the following logic:
+
   \x5 til => Tilbudt|Angebot
   \x5 odb => Orderbekreftelse
   \x5 fak => Faktura
@@ -502,23 +644,21 @@ class DOC < Thor
   # <additionalInformation>: Information generated from the metadata fields
   'title', 'subject' and 'keywords'. 
 
-  If Title or Keywords contains one of the following keywords, the will be
-  replaced with the corresponding abbreviation followed by the specified value
-  separated by a whitespace:
+  If 'Title' or 'Keywords' contains one of the following keywords, the will be replaced with the corresponding abbreviation followed by the specified value separated by a whitespace:
 
   \x5 fak => Faktura|Fakturanummer|Rechnung|Rechnungsnummer
   \x5 kdn => Kunde|Kundenummer|Kunde|Kundennummer
   \x5 ord => Ordre|Ordrenummer|Bestellung|Bestellungsnummer
   \x5 kvi => Kvittering|Kvitteringsnummer|Quittung|Quittungsnummer
 
-  Rule 2: The number of keywords used in the filename is defined by the parameter
-  '-k'. See the section of that parameter for more details and the default value.
+  Rule 2: The number of keywords used in the filename is defined by the parameter '-k'. See the section of that parameter for more details and the default value.
 
   Rule 3: Keywords matching 'kvi','fak','ord','kdn' are prioritised.
 
   Rule 4: Special characters and whitespaces are replaced: 
-          \s => _
-          /  => _
+
+  \x5 ' ' => '_'
+  \x5 '/' => '_'
 
   Rule 5: The new filename has only lowercase characters.
 
@@ -534,8 +674,8 @@ class DOC < Thor
   \x5 Keywords   : John Doe, Jane Doe, Mister Doe
 
   # Renaming the file
-  \x5>CLI rename example.pdf
-  \x5example.pdf => 19700101-john-dok-new_product-john_doe-jane_doe.pdf
+  \x5> CLI rename example.pdf
+  \x5 example.pdf => 19700101-john-dok-new_product-john_doe-jane_doe.pdf
 
   # Simulation to rename the file (no actual change)
   \x5> CLI rename -n example.pdf
@@ -674,7 +814,6 @@ class DOC < Thor
     end
 
     if not options[:dryrun] and filename != newFilename.downcase
-      #puts "  #{filename} => #{newFilename.downcase}"
       `mv -v '#{filename}' '#{newFilename.downcase}'`
     else
       puts filename + "\n   => " + newFilename.downcase
