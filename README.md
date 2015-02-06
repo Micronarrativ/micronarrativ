@@ -11,4 +11,6 @@ This is the scripts branch.
 ## Ruby
 * `pdf/pdfmetadata.rb`  
   Showing and updating PDF metadata, renaming the file accordingly.
+* `revealmgmt.rb`  
+  Working with the presentation framework [reveal.js](http://lab.hakim.se/reveal-js/#/): Packing it up in a tgz file for sending or setting up a new one.
 
