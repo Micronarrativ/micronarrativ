@@ -1,0 +1,19 @@
+#!/usr/bin/env ruby
+# 2015-02-16/DR
+# pre-commit hook for GIT for checking puppet pp files
+# with puppet-lint
+
+# Define checks here:
+puppetlintChecks = '--no-autoloader_layout-check --no-80chars-check'
+
+# List of changed files
+files            = `git diff --cached --name-only`
+
+# Iterate over every line in the list and check it if it still
+# exists
+files.each_line do |file|
+  if File.extname(file).match(/pp/) and File.exists?(file)
+    system("puppet-lint #{puppetlintChecks} #{file}")
+    $? != 0 ? exit($?.exitstatus) : ''
+  end
+end
