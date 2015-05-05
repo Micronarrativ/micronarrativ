@@ -9,7 +9,7 @@ This is the scripts branch.
   Runs under RedHat 3.6.
 
 ## Ruby
-* `pdf/pdfmetadata.rb`  
+* `pdf/pmd.rb`  
   Showing and updating PDF metadata, renaming the file accordingly.
 * `revealmgmt.rb`  
   Working with the presentation framework [reveal.js](http://lab.hakim.se/reveal-js/#/): Packing it up in a tgz file for sending or setting up a new one.
