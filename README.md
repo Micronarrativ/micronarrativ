@@ -9,6 +9,8 @@ This is the scripts branch.
   Runs under RedHat 3.6.
 
 ## Ruby
+* `jekyll/gitlog`
+  Plugin for jekyll to use the tag 'gitupdates' which will be replaced with the notes of the latest comits from the posting folder. This keeps an automatically updated list in the blogg.
 * `pdf/pmd.rb`  
   <strike>Showing and updating PDF metadata, renaming the file accordingly.</strike> Moved into gem _pdfmd_.
 * `scan`
