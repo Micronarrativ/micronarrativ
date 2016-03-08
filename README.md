@@ -19,4 +19,6 @@ This is the scripts branch.
   Working with the presentation framework [reveal.js](http://lab.hakim.se/reveal-js/#/): Packing it up in a tgz file for sending or setting up a new one.
 * `puppet/pre-commit`  
   Simple pre commit hook for checking pp files for Puppet. Ignores deleted files.
+* `graphviz/dot2png-pandoc.rb`  
+  Dot to PNG converter for markdown documents which convert to pdf via pandoc. Creates diagrams with 1800px width and the filename in the bottom of the diagram.
 
