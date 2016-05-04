@@ -117,7 +117,7 @@ do
     for i in ${PRIVATE_NETWORKS}; do
 
         [ $DEBUG -eq 1 ] && echo "Checking if IP (${INBOUND_IP}) is part of Network (${i})."
-        if [[ `echo ${INBOUND_IP} | grep -E "^${i}"` ]]; then            # Bash on RHEL is too old to know '=~'
+        if [[ `echo ${INBOUND_IP} | grep -E "^${i//./\.}"` ]]; then     # Bash on RHEL is too old to know '=~'
             [ $DEBUG -eq 1 ] && echo "Inbound IP (${INBOUND_IP}) triggered, but is part of private Network ${i}. Ignoring."
             continue 2
         fi
